@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>AR - Modelo 3D Animado</title>
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ar.js/2.2.2/aframe-ar.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    .a-enter-vr { display: none; }
+  </style>
+</head>
+<body style="margin:0;overflow:hidden">
+
+  <!--
+    IMPORTANTE:
+    - Use um marcador Hiro (o padrão do AR.js) para testar rápido: https://raw.githack.com/AR-js-org/AR.js/master/data/images/hiro.png
+    - Depois você pode trocar para um marcador personalizado (pattern próprio) se quiser.
+    - O modelo (model.glb) precisa estar na mesma pasta que este index.html.
+  -->
+
+  <div id="debug" style="position:fixed;top:0;left:0;z-index:999;background:rgba(0,0,0,0.7);color:#0f0;font-family:monospace;font-size:14px;padding:8px;width:100%;box-sizing:border-box;">
+    Câmera: aguardando... | Marcador: aguardando... | Modelo: aguardando...
+  </div>
+
+  <a-scene embedded arjs="sourceType: webcam; sourceWidth: 1280; sourceHeight: 960; displayWidth: 1280; displayHeight: 960; debugUIEnabled: true;" vr-mode-ui="enabled: false">
+
+    <a-assets>
+      <a-asset-item id="modelo3d" src="model.glb"></a-asset-item>
+    </a-assets>
+
+    <a-marker preset="hiro" id="marcador">
+      <!-- Cubo vermelho de teste: se ele aparecer mas o modelo não, o problema é no modelo (escala/formato).
+           Se nem o cubo aparecer, o problema é na leitura do marcador. -->
+      <a-box position="0 0.5 0" scale="0.3 0.3 0.3" color="red"></a-box>
+
+      <a-entity
+        id="objeto"
+        gltf-model="#modelo3d"
+        scale="0.05 0.05 0.05"
+        position="0 0 0"
+        rotation="0 0 0">
+      </a-entity>
+    </a-marker>
+
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <script>
+    const debugEl = document.getElementById('debug');
+    let status = { camera: 'aguardando', marker: 'não detectado', model: 'aguardando' };
+
+    function atualizarDebug() {
+      debugEl.innerText = `Câmera: ${status.camera} | Marcador: ${status.marker} | Modelo: ${status.model}`;
+    }
+
+    window.addEventListener('camera-init', () => { status.camera = 'OK'; atualizarDebug(); });
+    window.addEventListener('camera-error', (e) => { status.camera = 'ERRO: ' + JSON.stringify(e.detail); atualizarDebug(); });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const marker = document.querySelector('#marcador');
+      const objeto = document.querySelector('#objeto');
+
+      marker.addEventListener('markerFound', () => { status.marker = 'DETECTADO ✔'; atualizarDebug(); });
+      marker.addEventListener('markerLost', () => { status.marker = 'perdido'; atualizarDebug(); });
+
+      objeto.addEventListener('model-loaded', () => { status.model = 'CARREGADO ✔'; atualizarDebug(); });
+      objeto.addEventListener('model-error', (e) => { status.model = 'ERRO: ' + JSON.stringify(e.detail); atualizarDebug(); });
+
+      atualizarDebug();
+    });
+  </script>
+
+  <script>
+    // Animação procedural: gira e flutua o objeto continuamente,
+    // já que o .glb não tem animação embutida (sem armature/keyframes).
+    AFRAME.registerComponent('animar-objeto', {
+      tick: function (time) {
+        const t = time / 1000;
+        this.el.setAttribute('rotation', {
+          x: 0,
+          y: (t * 40) % 360,   // gira 40 graus por segundo no eixo Y
+          z: 0
+        });
+        const flutuar = Math.sin(t * 2) * 0.02; // sobe/desce suavemente
+        this.el.setAttribute('position', { x: 0, y: flutuar, z: 0 });
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const obj = document.querySelector('#objeto');
+      obj.setAttribute('animar-objeto', '');
+    });
+  </script>
+
+</body>
+</html>
