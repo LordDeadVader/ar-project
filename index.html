@@ -61,16 +61,33 @@
       object-fit: contain;
     }
 
+    #tela-foto {
+      padding: 24px;
+      box-sizing: border-box;
+    }
+
     #tela-foto img {
       max-width: 90%;
-      max-height: 65%;
+      max-height: 55%;
       border-radius: 12px;
-      margin-bottom: 20px;
+      margin-bottom: 18px;
+    }
+
+    #texto-emocional {
+      color: #f2f2f2;
+      text-align: center;
+      font-size: 15px;
+      line-height: 1.6;
+      max-width: 90%;
+      margin-bottom: 22px;
+      font-style: italic;
     }
 
     .linha-botoes {
       display: flex;
-      gap: 12px;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
     }
 
     .botao-acao {
@@ -78,8 +95,8 @@
       color: #111;
       border: none;
       border-radius: 30px;
-      padding: 14px 24px;
-      font-size: 15px;
+      padding: 12px 20px;
+      font-size: 14px;
       font-weight: bold;
     }
 
@@ -128,18 +145,24 @@
     <a-entity camera></a-entity>
   </a-scene>
 
-  <!-- BOTÃO QUE APARECE APÓS 5s DE MARCADOR DETECTADO -->
+  <!-- BOTÃO QUE APARECE APÓS O MARCADOR SER DETECTADO -->
   <button id="botao-mensagem">Visualizar mensagem</button>
 
   <!-- TELA DO VÍDEO -->
   <div id="tela-video" class="tela-cheia">
-    <video id="video-mensagem" src="video.mp4" playsinline></video>
+    <video id="video-mensagem" src="video.mp4" playsinline webkit-playsinline></video>
   </div>
 
-  <!-- TELA DA FOTO + BOTÕES -->
+  <!-- TELA DA FOTO + TEXTO + BOTÕES -->
   <div id="tela-foto" class="tela-cheia">
     <img src="foto.jpg" alt="Foto">
+    <p id="texto-emocional">
+      "Você prometeu levar seus netos pra esse castelo — e essa promessa continua viva.
+      Hoje é a nossa família inteira caminhando aqui por você. A mochila está com a gente,
+      e você também. Com amor, sempre."
+    </p>
     <div class="linha-botoes">
+      <button id="botao-inicio" class="botao-acao">Voltar ao início</button>
       <button id="botao-video-novamente" class="botao-acao">Ver vídeo novamente</button>
       <button id="botao-3d" class="botao-acao">Ver modelo 3D</button>
     </div>
@@ -190,9 +213,11 @@
       const botao3d = document.querySelector('#botao-3d');
       const botaoFechar3d = document.querySelector('#botao-fechar-3d');
       const botaoVideoNovamente = document.querySelector('#botao-video-novamente');
+      const botaoInicio = document.querySelector('#botao-inicio');
 
       let timerBotao = null;
       let botaoJaMostrado = false;
+      let videoAtivo = false;
 
       // Toque inicial: libera áudio e começa a música de fundo
       telaInicio.addEventListener('click', () => {
@@ -200,6 +225,14 @@
         musica.volume = 1;
         musica.play().catch(err => console.warn('Erro ao tocar música:', err));
       }, { once: true });
+
+      // Se a música for pausada (ex: o navegador tirou o foco de áudio dela
+      // quando o vídeo começou a tocar), a gente resume ela automaticamente.
+      musica.addEventListener('pause', () => {
+        if (videoAtivo || telaFoto.style.display === 'flex') {
+          musica.play().catch(() => {});
+        }
+      });
 
       marcador.addEventListener('markerFound', () => {
         if (botaoJaMostrado) return;
@@ -216,10 +249,12 @@
       function abrirVideo() {
         telaFoto.style.display = 'none';
         telaVideo.style.display = 'flex';
+        videoAtivo = true;
         video.currentTime = 0;
         video.play();
-        // Abaixa a música enquanto o vídeo toca, pra não brigar com o áudio do vídeo
-        musica.volume = 0.15;
+        // Abaixa a música (não para) enquanto o vídeo toca
+        musica.volume = 0.3;
+        if (musica.paused) musica.play().catch(() => {});
       }
 
       botaoMensagem.addEventListener('click', () => {
@@ -228,6 +263,7 @@
       });
 
       video.addEventListener('ended', () => {
+        videoAtivo = false;
         telaVideo.style.display = 'none';
         telaFoto.style.display = 'flex';
         musica.volume = 1; // volta o volume da música
@@ -243,6 +279,16 @@
       botaoFechar3d.addEventListener('click', () => {
         telaModelo3d.style.display = 'none';
         telaFoto.style.display = 'flex';
+      });
+
+      // Volta pra câmera AR do zero, permitindo detectar o marcador de novo
+      botaoInicio.addEventListener('click', () => {
+        telaFoto.style.display = 'none';
+        telaVideo.style.display = 'none';
+        telaModelo3d.style.display = 'none';
+        video.pause();
+        botaoJaMostrado = false;
+        botaoMensagem.style.display = 'none';
       });
     });
   </script>
