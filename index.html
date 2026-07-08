@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>AR - Mensagem</title>
+  <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: sans-serif; }
+    .a-enter-vr { display: none; }
+
+    #tela-inicio {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 20px;
+      text-align: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    #botao-mensagem {
+      display: none;
+      position: fixed;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 500;
+      background: #ffffff;
+      color: #111;
+      border: none;
+      border-radius: 30px;
+      padding: 14px 28px;
+      font-size: 16px;
+      font-weight: bold;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    .tela-cheia {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 1000;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #video-mensagem {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    #tela-foto img {
+      max-width: 90%;
+      max-height: 65%;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+
+    .linha-botoes {
+      display: flex;
+      gap: 12px;
+    }
+
+    .botao-acao {
+      background: #ffffff;
+      color: #111;
+      border: none;
+      border-radius: 30px;
+      padding: 14px 24px;
+      font-size: 15px;
+      font-weight: bold;
+    }
+
+    model-viewer {
+      width: 100%;
+      height: 100%;
+    }
+
+    #botao-fechar-3d {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1100;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TELA INICIAL: necessária pro navegador liberar áudio automático -->
+  <div id="tela-inicio">
+    <div>
+      <p>Toque na tela para começar</p>
+    </div>
+  </div>
+
+  <!-- MÚSICA DE FUNDO -->
+  <audio id="musica-fundo" src="musica.mp3" loop></audio>
+
+  <!-- CENA AR -->
+  <a-scene embedded arjs="sourceType: webcam; sourceWidth: 1280; sourceHeight: 960; displayWidth: 1280; displayHeight: 960; debugUIEnabled: false;" vr-mode-ui="enabled: false">
+
+    <a-assets>
+      <a-asset-item id="modelo3d" src="model.glb"></a-asset-item>
+    </a-assets>
+
+    <a-marker preset="hiro" id="marcador">
+      <a-entity
+        id="objeto"
+        gltf-model="#modelo3d"
+        scale="5 5 5"
+        position="0 0 0"
+        rotation="0 0 0">
+      </a-entity>
+    </a-marker>
+
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <!-- BOTÃO QUE APARECE APÓS 5s DE MARCADOR DETECTADO -->
+  <button id="botao-mensagem">Visualizar mensagem</button>
+
+  <!-- TELA DO VÍDEO -->
+  <div id="tela-video" class="tela-cheia">
+    <video id="video-mensagem" src="video.mp4" playsinline></video>
+  </div>
+
+  <!-- TELA DA FOTO + BOTÕES -->
+  <div id="tela-foto" class="tela-cheia">
+    <img src="foto.jpg" alt="Foto">
+    <div class="linha-botoes">
+      <button id="botao-video-novamente" class="botao-acao">Ver vídeo novamente</button>
+      <button id="botao-3d" class="botao-acao">Ver modelo 3D</button>
+    </div>
+  </div>
+
+  <!-- TELA DO MODELO 3D INTERATIVO -->
+  <div id="tela-modelo3d" class="tela-cheia">
+    <button id="botao-fechar-3d" class="botao-acao">Fechar</button>
+    <model-viewer src="model.glb" auto-rotate camera-controls shadow-intensity="1"></model-viewer>
+  </div>
+
+  <script>
+    // Animação procedural do objeto na cena AR
+    AFRAME.registerComponent('animar-objeto', {
+      tick: function (time) {
+        const t = time / 1000;
+        this.el.setAttribute('rotation', { x: 0, y: (t * 20) % 360, z: 0 });
+        const flutuar = Math.sin(t * 2) * 0.1;
+        this.el.setAttribute('position', { x: 0, y: flutuar, z: 0 });
+      }
+    });
+
+    // Correção de zoom em celulares com múltiplas lentes traseiras
+    function corrigirZoomCamera() {
+      const video = document.querySelector('#arjs-video') || document.querySelector('video[id^="arjs"]');
+      if (!video || !video.srcObject) { setTimeout(corrigirZoomCamera, 500); return; }
+      const track = video.srcObject.getVideoTracks()[0];
+      if (!track) return;
+      const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+      if (capabilities.zoom) {
+        track.applyConstraints({ advanced: [{ zoom: capabilities.zoom.min }] }).catch(() => {});
+      }
+    }
+    window.addEventListener('load', () => setTimeout(corrigirZoomCamera, 1000));
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const obj = document.querySelector('#objeto');
+      obj.setAttribute('animar-objeto', '');
+
+      const telaInicio = document.querySelector('#tela-inicio');
+      const musica = document.querySelector('#musica-fundo');
+      const marcador = document.querySelector('#marcador');
+      const botaoMensagem = document.querySelector('#botao-mensagem');
+      const telaVideo = document.querySelector('#tela-video');
+      const telaFoto = document.querySelector('#tela-foto');
+      const telaModelo3d = document.querySelector('#tela-modelo3d');
+      const video = document.querySelector('#video-mensagem');
+      const botao3d = document.querySelector('#botao-3d');
+      const botaoFechar3d = document.querySelector('#botao-fechar-3d');
+      const botaoVideoNovamente = document.querySelector('#botao-video-novamente');
+
+      let timerBotao = null;
+      let botaoJaMostrado = false;
+
+      // Toque inicial: libera áudio e começa a música de fundo
+      telaInicio.addEventListener('click', () => {
+        telaInicio.style.display = 'none';
+        musica.volume = 1;
+        musica.play().catch(err => console.warn('Erro ao tocar música:', err));
+      }, { once: true });
+
+      marcador.addEventListener('markerFound', () => {
+        if (botaoJaMostrado) return;
+        timerBotao = setTimeout(() => {
+          botaoMensagem.style.display = 'block';
+          botaoJaMostrado = true;
+        }, 5000);
+      });
+
+      marcador.addEventListener('markerLost', () => {
+        if (timerBotao && !botaoJaMostrado) clearTimeout(timerBotao);
+      });
+
+      function abrirVideo() {
+        telaFoto.style.display = 'none';
+        telaVideo.style.display = 'flex';
+        video.currentTime = 0;
+        video.play();
+        // Abaixa a música enquanto o vídeo toca, pra não brigar com o áudio do vídeo
+        musica.volume = 0.15;
+      }
+
+      botaoMensagem.addEventListener('click', () => {
+        botaoMensagem.style.display = 'none';
+        abrirVideo();
+      });
+
+      video.addEventListener('ended', () => {
+        telaVideo.style.display = 'none';
+        telaFoto.style.display = 'flex';
+        musica.volume = 1; // volta o volume da música
+      });
+
+      botaoVideoNovamente.addEventListener('click', abrirVideo);
+
+      botao3d.addEventListener('click', () => {
+        telaFoto.style.display = 'none';
+        telaModelo3d.style.display = 'flex';
+      });
+
+      botaoFechar3d.addEventListener('click', () => {
+        telaModelo3d.style.display = 'none';
+        telaFoto.style.display = 'flex';
+      });
+    });
+  </script>
+
+</body>
+</html>
