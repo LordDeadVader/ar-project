@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>AR - Modelo 3D Animado</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ar.js/2.2.2/aframe-ar.js"></script>
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    .a-enter-vr { display: none; }
+  </style>
+</head>
+<body style="margin:0;overflow:hidden">
+
+  <!--
+    IMPORTANTE:
+    - Use um marcador Hiro (o padrão do AR.js) para testar rápido: https://raw.githack.com/AR-js-org/AR.js/master/data/images/hiro.png
+    - Depois você pode trocar para um marcador personalizado (pattern próprio) se quiser.
+    - O modelo (model.glb) precisa estar na mesma pasta que este index.html.
+  -->
+
+  <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false">
+
+    <a-assets>
+      <a-asset-item id="modelo3d" src="model.glb"></a-asset-item>
+    </a-assets>
+
+    <a-marker preset="hiro">
+      <a-entity
+        id="objeto"
+        gltf-model="#modelo3d"
+        scale="0.05 0.05 0.05"
+        position="0 0 0"
+        rotation="0 0 0">
+      </a-entity>
+    </a-marker>
+
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <script>
+    // Animação procedural: gira e flutua o objeto continuamente,
+    // já que o .glb não tem animação embutida (sem armature/keyframes).
+    AFRAME.registerComponent('animar-objeto', {
+      tick: function (time) {
+        const t = time / 1000;
+        this.el.setAttribute('rotation', {
+          x: 0,
+          y: (t * 40) % 360,   // gira 40 graus por segundo no eixo Y
+          z: 0
+        });
+        const flutuar = Math.sin(t * 2) * 0.02; // sobe/desce suavemente
+        this.el.setAttribute('position', { x: 0, y: flutuar, z: 0 });
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const obj = document.querySelector('#objeto');
+      obj.setAttribute('animar-objeto', '');
+    });
+  </script>
+
+</body>
+</html>
